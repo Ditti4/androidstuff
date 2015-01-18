@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Script for autmatically synchronizing all apps and their data
+# to a specific path on your computer.
+# When you plug in your device the script will start to pull
+# all apps and their data to your computer.
+# If you haven't set the path where it should be saved, the script
+# will ask for a path to save the stuff to.
+# Note: You'll need USB debugging enabled and the "adb" command in your
+# path variable.
+
+# If you want you can just create a cronjob to run this script
+# every x hours/minutes/days/whatever.
+
+scripthelp () {
+	echo "Usage: $0 [OPTION]"
+	echo -e "Options: \n\tNo option\tRun the script"
+	echo -e "\t-c\t\tSet new value for path."
+	echo -e "\t-r\t\tSet new value for path, then run the script."
+	echo -e "\t-h\t\tView this help."
+	exit 0
+}
+
+config () {
+	echo "Q: Where should I put the apps and their data?"
+	read path
+	echo "$path" > ~/.autosyncrc
+	exit 0
+}
+
+configrun () {
+	echo "Q: Where should I put the apps and their data?"
+	read path
+	echo "$path" > ~/.autosyncrc
+}
+clear
+while getopts "crh" OPT
+do
+	case $OPT in
+		c) 	config;;
+		r)	configrun;;
+		h) 	scripthelp;;
+		*) 	echo "$0: Wrong option!"
+			scripthelp;;
+	esac
+done
+
+echo "I: Waiting for device to connect..."
+echo "I: Make soure USB-Debugging is enabled on your phone."
+adb devices > /dev/null 2>&1
+adb wait-for-device
+
+echo "I: Looks like the device is connected now. Continuing."
+
+if [ ! -f ~/.autosyncrc ]; then
+configrun
+    if [ ! -d $path ]; then
+        mkdir $path > /dev/null 2>&1
+    fi
+fi
+echo "I: Starting the sync process..."
+echo "I: Please wait. This may take a while..."
+
+path=`cat ~/.autosyncrc | head -n 1`
+
+date=`date +%d%m%y`
+data="${path}/${date}/data"
+app="${path}/${date}/app"
+
+mkdir "${path}/${date}" > /dev/null 2>&1
+mkdir "$data" > /dev/null 2>&1
+mkdir "$app" > /dev/null 2>&1
+
+adb pull /data/data "$data" > /dev/null 2>&1
+adb pull /data/app "$app" > /dev/null 2>&1
+
+echo "I: Done. Things are stored in ${path}/${date}."
+echo "I: If you want to sync again, start the script again."
+echo "I: Exiting now..."
+exit 0
